@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-cmn-Hans">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
+  <title>webview内页面</title>
+  <style>
+    body{
+      margin: 0;
+      background: #ccc;
+    }
+  </style>
+</head>
+<body>
+  <div class="info">初始计数器：<span id="init">0</span></div>
+  <div class="info">当前计数器：<span id="counter">0</span></div>
+  <script src="../js/jweixin-1.3.2.js"></script>
+  <script>
+    var init = document.querySelector('#init');
+    var counterEle = document.querySelector('#counter');
+    var count = parseInt(location.search.split('=')[1]) || 0;
+    console.log('初始计数器', count);
+    init.innerText = count;
+    var isShow = true;
+    var timer = null;
+    // 递增，发现isShow为false则停止
+    function doCount() {
+      count++;
+      counterEle.innerText = count;
+      // 通知小程序
+      wx.miniProgram.postMessage({
+        data: count
+      })
+      console.log('当前计数', count);
+      if(isShow){
+        timer = setTimeout(() => {
+          doCount();
+        }, 1000);
+      }
+    }
+    // 监控hash变化修改isShow状态
+    window.addEventListener('hashchange', function() {
+      var hashData = location.hash.slice(1) === 'true';
+      console.log('当前页面是否在前台', hashData);
+      if(isShow !== hashData){
+        isShow = hashData;
+        if(hashData){
+          doCount();
+        }else{
+          if(timer){
+            clearTimeout(timer);
+            timer = null;
+          }
+        }
+      }
+    });
+    // 通过onpopstate监测用户想要退出webview页面
+    var oldHistoryLength = history.length;
+    window.onpopstate = () => {
+      //每次小程序切换前后台，都会修改history堆栈，触发popstate事件，并且增加history堆栈的长度,
+      //而点击返回按钮虽然会触发popstate事件，但是并不会修改堆栈长度，通过这个区别知道用户是想点击返回退出正文，调用小程序的返回接口
+      if(history.length > oldHistoryLength){
+        oldHistoryLength = history.length;
+      }else{
+        wx.miniProgram.navigateBack();
+      }
+    }
+
+    // 开始计数器
+    doCount();
+  </script>
+</body>
+</html>
